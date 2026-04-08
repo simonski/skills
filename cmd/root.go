@@ -45,6 +45,7 @@ func init() {
 	rootCmd.AddCommand(rmCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(initCmd)
 }
 
 // checkForUpdates prints a notice when a newer release is available.
