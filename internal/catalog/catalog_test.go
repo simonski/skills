@@ -56,3 +56,74 @@ func TestGet_UnknownSkill(t *testing.T) {
 		t.Fatal("expected error for unknown skill, got nil")
 	}
 }
+
+func TestVersions_KnownSkill(t *testing.T) {
+	versions, err := catalog.Versions("go")
+	if err != nil {
+		t.Fatalf("catalog.Versions(\"go\") error: %v", err)
+	}
+	if len(versions) == 0 {
+		t.Fatal("expected at least one version for skill \"go\"")
+	}
+	for _, v := range versions {
+		if v == "" {
+			t.Error("unexpected empty version string")
+		}
+	}
+}
+
+func TestVersions_UnknownSkill(t *testing.T) {
+	_, err := catalog.Versions("nonexistent-skill-xyz")
+	if err == nil {
+		t.Fatal("expected error for unknown skill, got nil")
+	}
+}
+
+func TestVersions_SortedOldestToNewest(t *testing.T) {
+	versions, err := catalog.Versions("go")
+	if err != nil {
+		t.Fatalf("catalog.Versions(\"go\") error: %v", err)
+	}
+	// Versions slice must be in ascending order.
+	for i := 1; i < len(versions); i++ {
+		if versions[i] <= versions[i-1] {
+			t.Errorf("versions not sorted: %v", versions)
+		}
+	}
+}
+
+func TestGetVersion_KnownVersion(t *testing.T) {
+	s, err := catalog.GetVersion("go", "1.0.0")
+	if err != nil {
+		t.Fatalf("catalog.GetVersion(\"go\", \"1.0.0\") error: %v", err)
+	}
+	if s.ID != "go" {
+		t.Errorf("expected ID %q, got %q", "go", s.ID)
+	}
+	if s.Version != "1.0.0" {
+		t.Errorf("expected Version %q, got %q", "1.0.0", s.Version)
+	}
+}
+
+func TestGetVersion_UnknownVersion(t *testing.T) {
+	_, err := catalog.GetVersion("go", "99.0.0")
+	if err == nil {
+		t.Fatal("expected error for unknown version, got nil")
+	}
+}
+
+func TestGet_ReturnsLatestVersion(t *testing.T) {
+	versions, err := catalog.Versions("go")
+	if err != nil {
+		t.Fatalf("catalog.Versions(\"go\") error: %v", err)
+	}
+	latest := versions[len(versions)-1]
+
+	s, err := catalog.Get("go")
+	if err != nil {
+		t.Fatalf("catalog.Get(\"go\") error: %v", err)
+	}
+	if s.Version != latest {
+		t.Errorf("Get returned version %q, expected latest %q", s.Version, latest)
+	}
+}
