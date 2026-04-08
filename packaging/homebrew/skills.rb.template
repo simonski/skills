@@ -1,0 +1,34 @@
+class Skills < Formula
+  desc "Agentic skills manager for AI-agent skill definitions"
+  homepage "https://github.com/simonski/skills"
+  version "SKILLS_VERSION"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/simonski/skills/releases/download/vSKILLS_VERSION/skills-darwin-arm64.tar.gz"
+      sha256 "SKILLS_SHA_DARWIN_ARM64"
+    else
+      url "https://github.com/simonski/skills/releases/download/vSKILLS_VERSION/skills-darwin-amd64.tar.gz"
+      sha256 "SKILLS_SHA_DARWIN_AMD64"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/simonski/skills/releases/download/vSKILLS_VERSION/skills-linux-arm64.tar.gz"
+      sha256 "SKILLS_SHA_LINUX_ARM64"
+    else
+      url "https://github.com/simonski/skills/releases/download/vSKILLS_VERSION/skills-linux-amd64.tar.gz"
+      sha256 "SKILLS_SHA_LINUX_AMD64"
+    end
+  end
+
+  def install
+    bin.install Dir["skills-*"].first => "skills"
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/skills version")
+  end
+end
