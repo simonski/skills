@@ -1,0 +1,18 @@
+---
+id: git
+version: 1.0.0
+description: Git conventional commits and branching practices for AI agents
+---
+
+# Git Conventional Commits
+
+When writing commit messages and working with Git:
+
+- Follow the Conventional Commits specification: `<type>(<scope>): <subject>`.
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`.
+- Keep the subject line under 72 characters, written in the imperative mood.
+- Add a body to the commit message when the change requires explanation.
+- Reference issues or pull requests with `Fixes #123` or `Closes #123` in the footer.
+- Use feature branches named `feat/<description>` or `fix/<description>`.
+- Squash fixup commits before merging to keep history clean.
+- Never force-push to shared branches like `main` or `develop`.

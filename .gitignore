@@ -1,0 +1,14 @@
+# Build artefacts
+dist/
+*.exe
+
+# Go tool cache
+vendor/
+
+# macOS
+.DS_Store
+
+# Editor files
+.idea/
+.vscode/
+*.swp

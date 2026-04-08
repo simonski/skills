@@ -1,0 +1,20 @@
+---
+id: go
+version: 1.0.0
+description: Go programming best practices for AI agents
+---
+
+# Go Best Practices
+
+When writing Go code, follow these guidelines:
+
+- Use `gofmt` to format all code before committing.
+- Prefer explicit error handling over panics; always check returned errors.
+- Use table-driven tests with `t.Run` for subtests.
+- Keep functions small and focused on a single responsibility.
+- Use meaningful variable names; avoid single-letter names except in short loops.
+- Document all exported identifiers with a comment starting with the name.
+- Avoid global state; prefer dependency injection.
+- Use `context.Context` for cancellation and deadline propagation.
+- Prefer interfaces over concrete types in function signatures.
+- Use `errors.Is` / `errors.As` for error inspection rather than string matching.

@@ -1,0 +1,20 @@
+---
+id: security
+version: 1.0.0
+description: Security best practices for AI agents
+---
+
+# Security Best Practices
+
+When writing code with security considerations:
+
+- Never store secrets, API keys, or passwords in source code or version control.
+- Use environment variables or a secrets manager for sensitive configuration.
+- Validate and sanitise all user-supplied input; never trust external data.
+- Use parameterised queries or prepared statements to prevent SQL injection.
+- Apply the principle of least privilege for all service accounts and API tokens.
+- Keep dependencies up to date and regularly audit for known vulnerabilities.
+- Use HTTPS / TLS for all network communication; never send credentials in plain text.
+- Hash passwords using a strong algorithm (bcrypt, argon2) with appropriate work factors.
+- Implement proper authentication and authorisation checks on every request.
+- Log security-relevant events (authentication failures, permission denials) without logging sensitive data.
