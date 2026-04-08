@@ -1,0 +1,97 @@
+name: CI / Publish
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test ./...
+
+  publish:
+    name: Publish
+    needs: test
+    runs-on: ubuntu-latest
+    # Skip the release commit that this workflow pushes back to main,
+    # otherwise we'd loop forever.
+    if: "!startsWith(github.event.head_commit.message, 'chore: release')"
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build release archives
+        run: make release
+
+      - name: Read version
+        id: version
+        run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Tag and push
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          gh release create "$TAG" \
+            dist/skills-darwin-amd64.tar.gz \
+            dist/skills-darwin-arm64.tar.gz \
+            dist/skills-linux-amd64.tar.gz \
+            dist/skills-linux-arm64.tar.gz \
+            dist/skills-windows-amd64.zip \
+            --title "skills $TAG" \
+            --notes "Release $TAG"
+
+      - name: Update Homebrew tap
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          VER="${{ steps.version.outputs.version }}"
+          SHA_DARWIN_AMD64=$(sha256sum dist/skills-darwin-amd64.tar.gz | awk '{print $1}')
+          SHA_DARWIN_ARM64=$(sha256sum dist/skills-darwin-arm64.tar.gz | awk '{print $1}')
+          SHA_LINUX_AMD64=$(sha256sum  dist/skills-linux-amd64.tar.gz  | awk '{print $1}')
+          SHA_LINUX_ARM64=$(sha256sum  dist/skills-linux-arm64.tar.gz  | awk '{print $1}')
+
+          TAPDIR=$(mktemp -d)
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/simonski/homebrew-tap.git" "$TAPDIR"
+          mkdir -p "$TAPDIR/Formula"
+          sed \
+            -e "s/SKILLS_VERSION/$VER/g" \
+            -e "s/SKILLS_SHA_DARWIN_AMD64/$SHA_DARWIN_AMD64/g" \
+            -e "s/SKILLS_SHA_DARWIN_ARM64/$SHA_DARWIN_ARM64/g" \
+            -e "s/SKILLS_SHA_LINUX_AMD64/$SHA_LINUX_AMD64/g" \
+            -e "s/SKILLS_SHA_LINUX_ARM64/$SHA_LINUX_ARM64/g" \
+            packaging/homebrew/skills.rb.template > "$TAPDIR/Formula/skills.rb"
+          cd "$TAPDIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/skills.rb
+          git commit -m "skills: update to v$VER"
+          git push origin HEAD
+          rm -rf "$TAPDIR"
