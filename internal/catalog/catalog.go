@@ -144,9 +144,6 @@ func parseVersion(v string) [3]int {
 	parts := strings.SplitN(v, ".", 3)
 	var result [3]int
 	for i, p := range parts {
-		if i >= 3 {
-			break
-		}
 		n, _ := strconv.Atoi(p)
 		result[i] = n
 	}
