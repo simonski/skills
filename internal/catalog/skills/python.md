@@ -1,0 +1,20 @@
+---
+id: python
+version: 1.0.0
+description: Python programming best practices for AI agents
+---
+
+# Python Best Practices
+
+When writing Python code, follow these guidelines:
+
+- Follow PEP 8 style guide; use `black` for formatting and `ruff` for linting.
+- Use type hints for all function signatures and class attributes.
+- Write docstrings for all public functions, classes, and modules.
+- Prefer f-strings over `.format()` or `%` formatting.
+- Use `pathlib.Path` instead of `os.path` for filesystem operations.
+- Handle exceptions explicitly; avoid bare `except:` clauses.
+- Use virtual environments (`venv` or `poetry`) for dependency isolation.
+- Write unit tests with `pytest`; aim for high coverage of business logic.
+- Prefer `dataclasses` or `pydantic` models over plain dictionaries for structured data.
+- Use `logging` instead of `print` for diagnostic output.

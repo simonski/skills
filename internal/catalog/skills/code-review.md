@@ -1,0 +1,20 @@
+---
+id: code-review
+version: 1.0.0
+description: Code review best practices for AI agents
+---
+
+# Code Review Best Practices
+
+When reviewing or preparing code for review:
+
+- Keep pull requests small and focused on a single concern.
+- Write a clear PR description explaining the what, why, and how of the change.
+- Check that new code has appropriate tests and that all tests pass.
+- Look for security issues: injection vulnerabilities, improper input validation, exposed secrets.
+- Verify error handling is consistent and meaningful error messages are surfaced.
+- Confirm that the code is readable and follows the project's conventions.
+- Flag performance concerns with evidence (benchmarks, profiling) rather than speculation.
+- Be constructive and specific in review comments; suggest alternatives rather than just criticising.
+- Approve only when you are genuinely satisfied, not just to unblock progress.
+- Ensure that breaking changes are clearly documented and communicated.

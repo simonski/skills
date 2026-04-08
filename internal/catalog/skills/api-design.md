@@ -1,0 +1,20 @@
+---
+id: api-design
+version: 1.0.0
+description: REST API design best practices for AI agents
+---
+
+# API Design Best Practices
+
+When designing and implementing APIs:
+
+- Follow RESTful conventions: use nouns for resources, HTTP verbs for actions.
+- Version your API from the start: `/v1/resources`.
+- Return appropriate HTTP status codes (200, 201, 400, 401, 403, 404, 409, 500).
+- Use consistent JSON envelope structures for responses and errors.
+- Validate all request payloads and return descriptive validation error messages.
+- Implement pagination for collection endpoints using cursor-based or offset pagination.
+- Use HATEOAS links where appropriate to make APIs discoverable.
+- Document all endpoints with OpenAPI / Swagger specifications.
+- Apply rate limiting to protect endpoints from abuse.
+- Use idempotency keys for non-idempotent operations (POST, PATCH) to support safe retries.
