@@ -40,6 +40,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.AddCommand(lsCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(rmCmd)
@@ -47,6 +48,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(versionsCmd)
 	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(getCmd)
 }
 
 // checkForUpdates prints a notice when a newer release is available.
