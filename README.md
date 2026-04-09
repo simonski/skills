@@ -21,12 +21,20 @@ make install        # installs to $GOPATH/bin
 ## Usage
 
 ```
-skills                    Show usage
-skills ls                 List catalog skills and show installation status
-skills add <skill-id>     Add a skill to the current project
-skills rm  <skill-id>     Remove a skill from the current project
-skills search <term>      Search the catalog for matching skills
-skills version            Print version and check for updates
+skills                         Show usage
+skills ls                      List catalog skills and show installation status
+skills add <skill-id>          Add a skill to the current project
+skills add <skill-id>@<ver>    Add a specific version of a skill
+skills rm  <skill-id>          Remove a skill from the current project
+skills search <term>           Search the catalog for matching skills
+skills update                  Preview available skill updates (dry run)
+skills update -y               Apply all available skill updates
+skills update <skill-id>       Preview update for a specific skill
+skills update <skill-id> -y    Apply update for a specific skill
+skills init                    Interactive wizard: detect agents and install skills
+skills get <skill-id>          Print skill content to stdout
+skills versions <skill-id>     List all available versions of a skill
+skills version                 Print version and check for updates
 ```
 
 ### `skills ls`
@@ -65,7 +73,26 @@ skills search python
 skills search "docker container"
 ```
 
-## Catalog
+### `skills update`
+
+Shows which installed skills have updates available (dry run by default). Pass `-y` to apply.
+
+```bash
+skills update           # preview — shows what would be updated
+skills update -y        # apply all updates
+skills update go        # preview update for a single skill
+skills update go -y     # apply update for a single skill
+```
+
+### `skills init`
+
+Interactive wizard that detects which coding agents are configured in the current project (GitHub Copilot, Cursor, Claude, etc.) and lets you install the relevant skills in one step.
+
+```bash
+skills init
+```
+
+
 
 | ID | Description |
 |----|-------------|
@@ -93,3 +120,12 @@ make clean     # remove dist/
 
 The binary automatically checks for a newer GitHub release on each run and prints a notice if one is available.
 You can also check manually with `skills version`.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branching conventions, commit style, PR process, and how to add new skills to the catalog.
+
+## Required secrets (for publishing)
+
+See [docs/SECRETS.md](docs/SECRETS.md) for setup instructions for `TAP_TOKEN` — required only when publishing releases.
+
