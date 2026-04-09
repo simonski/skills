@@ -15,7 +15,13 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go mod verify
-      - run: go test ./...
+      - run: go vet ./...
+      - name: Run tests with coverage
+        run: |
+          go test -coverprofile=coverage.out ./...
+          COVERAGE=$(go tool cover -func=coverage.out | grep '^total:' | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          awk -v cov="$COVERAGE" 'BEGIN { if (cov+0 < 40) { print "Coverage " cov "% is below 40% threshold"; exit 1 } }'
       - name: Run govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -44,6 +50,11 @@ jobs:
       - name: Build release archives
         run: make release
 
+      - name: Generate SBOM
+        run: |
+          go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@latest
+          cyclonedx-gomod app -main . -output dist/skills-sbom.xml -licenses -assert-licenses
+
       - name: Read version
         id: version
         run: echo "version=$(cat VERSION | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
@@ -70,6 +81,7 @@ jobs:
             dist/skills-linux-amd64.tar.gz \
             dist/skills-linux-arm64.tar.gz \
             dist/skills-windows-amd64.zip \
+            dist/skills-sbom.xml \
             --title "skills $TAG" \
             --notes "Release $TAG"
 

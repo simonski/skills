@@ -18,6 +18,7 @@ help:
 	@echo "    install    Install the $(BINARY) binary to GOPATH/bin"
 	@echo "    test       Run all tests"
 	@echo "    lint       Run go vet and staticcheck"
+	@echo "    setup      Install development tools (staticcheck, govulncheck)"
 	@echo "    clean      Remove build artefacts"
 	@echo "    release    Build release archives for all supported platforms"
 	@echo "    publish    Tag, release to GitHub, and update the Homebrew tap"
@@ -55,10 +56,16 @@ install:
 test:
 	go test ./...
 
+.PHONY: setup
+setup:
+	go install honnef.co/go/tools/cmd/staticcheck@latest
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	@echo "Dev tools installed."
+
 .PHONY: lint
 lint:
 	go vet ./...
-	@command -v staticcheck >/dev/null 2>&1 && staticcheck ./... || echo "(staticcheck not installed, skipping)"
+	@command -v staticcheck >/dev/null 2>&1 && staticcheck ./... || echo "(staticcheck not installed — run: make setup)"
 
 .PHONY: clean
 clean:
