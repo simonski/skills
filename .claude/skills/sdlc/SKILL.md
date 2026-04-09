@@ -1,6 +1,8 @@
 ---
 name: sdlc
 description: Use this skill when reviewing the overall codebase. Applies when the user asks for an "sdlc review".
+metadata: 
+    version: 0.0.1
 ---
 
 ## Core Principle
