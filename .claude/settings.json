@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "deny": [
+      "Read(.ticket/ticket.db)"
+    ]
+  },
+  "spinnerTipsEnabled": false,
+  "attribution": {
+    "commits": true,
+    "pullRequests": true
+  }
+}
