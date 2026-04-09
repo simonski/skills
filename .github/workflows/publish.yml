@@ -14,7 +14,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - run: go mod verify
       - run: go test ./...
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
 
   publish:
     name: Publish

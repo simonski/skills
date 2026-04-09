@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -13,9 +14,18 @@ const (
 )
 
 // LatestRelease queries the GitHub API for the latest release tag.
+// If GITHUB_TOKEN is set in the environment it is sent as a Bearer token
+// to avoid the 60 req/hr unauthenticated rate limit.
 func LatestRelease() (string, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Get(githubReleaseAPI)
+	req, err := http.NewRequest(http.MethodGet, githubReleaseAPI, nil)
+	if err != nil {
+		return "", fmt.Errorf("checking for updates: %w", err)
+	}
+	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("checking for updates: %w", err)
 	}
