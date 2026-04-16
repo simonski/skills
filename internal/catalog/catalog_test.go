@@ -94,15 +94,15 @@ func TestVersions_SortedOldestToNewest(t *testing.T) {
 }
 
 func TestGetVersion_KnownVersion(t *testing.T) {
-	s, err := catalog.GetVersion("go", "1.0.0")
+	s, err := catalog.GetVersion("go", "0.0.1")
 	if err != nil {
-		t.Fatalf("catalog.GetVersion(\"go\", \"1.0.0\") error: %v", err)
+		t.Fatalf("catalog.GetVersion(\"go\", \"0.0.1\") error: %v", err)
 	}
 	if s.ID != "go" {
 		t.Errorf("expected ID %q, got %q", "go", s.ID)
 	}
-	if s.Version != "1.0.0" {
-		t.Errorf("expected Version %q, got %q", "1.0.0", s.Version)
+	if s.Version != "0.0.1" {
+		t.Errorf("expected Version %q, got %q", "0.0.1", s.Version)
 	}
 }
 

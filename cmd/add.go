@@ -17,7 +17,7 @@ var addCmd = &cobra.Command{
 	Short: "Add a skill to the current project",
 	Long: `Add a skill from the catalog to the current project.
 
-The skill file is written to .skills/<skill-id>.md.
+The skill file is written to .skills/<skill-id>/SKILL.md.
 If the skill is already installed, it is updated to the specified version.
 
 To install the latest version:
@@ -26,7 +26,7 @@ To install the latest version:
 
 To pin to a specific version:
 
-  skills add go@1.0.0`,
+  skills add go@0.0.1`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runAdd(args[0])

@@ -24,7 +24,7 @@ func Dir(root string) string {
 
 // SkillPath returns the path to the installed skill file.
 func SkillPath(root, id string) string {
-	return filepath.Join(Dir(root), id+".md")
+	return filepath.Join(Dir(root), id, "SKILL.md")
 }
 
 // List returns all skills installed in the project at root.
@@ -40,18 +40,21 @@ func List(root string) ([]*InstalledSkill, error) {
 
 	var skills []*InstalledSkill
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+		if !entry.IsDir() {
 			continue
 		}
-		path := filepath.Join(dir, entry.Name())
+		path := filepath.Join(dir, entry.Name(), "SKILL.md")
 		data, err := os.ReadFile(path)
+		if os.IsNotExist(err) {
+			continue
+		}
 		if err != nil {
 			return nil, fmt.Errorf("reading %s: %w", path, err)
 		}
 		is := parseInstalled(data)
 		if is.ID == "" {
-			// Fall back to filename-derived ID
-			is.ID = strings.TrimSuffix(entry.Name(), ".md")
+			// Fall back to directory-name-derived ID
+			is.ID = entry.Name()
 		}
 		skills = append(skills, is)
 	}
@@ -77,7 +80,7 @@ func Get(root, id string) (*InstalledSkill, error) {
 
 // Install writes a skill file into the project.
 func Install(root, id, content string) error {
-	dir := Dir(root)
+	dir := filepath.Join(Dir(root), id)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("creating skills directory: %w", err)
 	}
@@ -88,13 +91,13 @@ func Install(root, id, content string) error {
 	return nil
 }
 
-// Remove deletes a skill file from the project.
+// Remove deletes a skill directory from the project.
 func Remove(root, id string) error {
-	path := SkillPath(root, id)
-	if err := os.Remove(path); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("skill %q is not installed", id)
-		}
+	dir := filepath.Join(Dir(root), id)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return fmt.Errorf("skill %q is not installed", id)
+	}
+	if err := os.RemoveAll(dir); err != nil {
 		return fmt.Errorf("removing skill %s: %w", id, err)
 	}
 	return nil

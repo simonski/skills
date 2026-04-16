@@ -82,10 +82,10 @@ func TestRemove(t *testing.T) {
 		t.Fatalf("Remove() error: %v", err)
 	}
 
-	// File should be gone.
-	path := filepath.Join(root, ".skills", "rm-skill.md")
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Errorf("expected file to be deleted, but it still exists at %s", path)
+	// Directory should be gone.
+	dir := filepath.Join(root, ".skills", "rm-skill")
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Errorf("expected directory to be deleted, but it still exists at %s", dir)
 	}
 }
 

@@ -181,7 +181,7 @@ func parse(data []byte) (*Skill, error) {
 				key := strings.TrimSpace(parts[0])
 				value := strings.TrimSpace(parts[1])
 				switch key {
-				case "id":
+				case "id", "name":
 					s.ID = value
 				case "version":
 					s.Version = value

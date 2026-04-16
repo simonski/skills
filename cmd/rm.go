@@ -15,7 +15,7 @@ var rmCmd = &cobra.Command{
 	Short: "Remove a skill from the current project",
 	Long: `Remove an installed skill from the current project.
 
-Deletes the .skills/<skill-id>.md file.`,
+Deletes the .skills/<skill-id>/ directory.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runRM(args[0])
