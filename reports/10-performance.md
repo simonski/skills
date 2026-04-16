@@ -1,38 +1,37 @@
 # Performance
 
-**Score: 82/100**
+**Score: 78/100** (was 82)
 
 ## What is being assessed
-N+1 I/O patterns, unbounded resource usage, goroutine safety, build context memory, and startup latency for a CLI tool.
+Performance review checks startup latency, repeated work, scaling behavior, and whether any code path can grow unexpectedly with user input. Good looks like fast command startup, bounded I/O, and no unnecessary repeated reads or network work.
 
 ## Methodology
-Traced all I/O paths. Checked for loops that perform file reads. Measured conceptual startup cost of embed.FS. Assessed HTTP client usage and timeout configuration.
+Reviewed startup flow, search/list implementations, embedded catalog access, and release lookups. Focused on user-visible latency rather than micro-optimizations.
 
 ## Findings
 
 ### Passing checks
-- **Embedded catalog**: all skill content compiled into binary via `//go:embed` — zero disk reads on startup; catalog access is purely in-memory
-- **HTTP timeout**: `LatestRelease` uses a 5-second client timeout — no unbounded blocking — internal/version/version.go:18
-- **No goroutine leaks**: no goroutines spawned in application code
-- **Small memory footprint**: catalog is ~8 skills × ~10KB each ≈ 80KB embedded data — negligible
-- **No N+1 catalog queries**: `catalog.All()` iterates skill IDs once then calls `GetVersion` per skill — each is an in-memory FS read, effectively free
-- **project.List** reads directory once then reads each .md file — linear in number of installed skills; fine at expected scale (<20 skills)
+- The catalog is embedded, so catalog reads avoid disk and network I/O (`internal/catalog/catalog.go:16-17,57-79`).
+- Search is a simple in-memory scan over a 10-skill catalog, which is acceptable at current scale (`cmd/search.go:24-53`).
+- Version lookups use a bounded 5-second timeout instead of an unbounded client (`internal/version/version.go:19-21`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| `checkForUpdates()` blocks the main command path with a synchronous HTTP call (up to 5s) | High | cmd/root.go:48 | Run in a background goroutine; print result after command output; use a channel with a short select timeout (500ms) |
-| `catalog.All()` calls `skillIDs()` then `Get()` per skill — two FS traversals | Low | internal/catalog/catalog.go:28 | Single-pass: read dir once, parse version from filename, read each file once. Current code is correct but could be simplified |
-| No caching of `LatestRelease` response — every command invocation hits the network | Medium | internal/version/version.go, cmd/root.go | Cache result in `~/.cache/skills/latest-version` with a 24-hour TTL |
+|---|---|---|---|
+| Every command except `version` blocks on a network update check before doing useful work | High | `cmd/root.go:25-31`, `internal/version/version.go:19-45` | Move the release check off the hot path and/or cache results with a TTL. |
+| `ls` calls `project.Get` once per catalog skill instead of loading installed skills once | Medium | `cmd/ls.go:47-63`, `internal/project/project.go:65-78` | Read installed skills in one pass and build an ID-to-version map before rendering the table. |
+| Release checks are never cached, so repeated local usage causes repeated GitHub API traffic | Medium | `internal/version/version.go:19-45` | Cache the latest successful release value locally for a short interval. |
 
 ## Verdict
-Performance is excellent for the intended use case. The only material issue is the synchronous update check which adds up to 5 seconds of latency to every command on a slow network. Moving it to a goroutine with a short timeout would make all commands feel instant.
+Current scale hides most performance issues, but startup latency is still unnecessarily coupled to the network. The biggest win would be eliminating synchronous release lookups from routine commands.
 
 ## Changes since last assessment
-First assessment.
+- No caching or async work was added around update checks.
+- Catalog growth remained small enough that the linear scans are still acceptable.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Async update check | High | Goroutine with 500ms timeout; cache result 24h |
-| Cache latest-version response | Medium | Write to ~/.cache/skills/latest-version with TTL |
+|---|---|---|
+| Blocking update check | High | Make release checks async or cached. |
+| Repeated per-skill filesystem reads in `ls` | Medium | Load installed state once per command. |
+| No release-check cache | Medium | Add a small local cache with expiry. |

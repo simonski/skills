@@ -1,44 +1,38 @@
-# Infosec / Cyber
+# InfoSec / Cyber
 
-**Score: 78/100**
+**Score: 55/100** (was 78)
 
 ## What is being assessed
-Threat model covering all attack surfaces: code injection, path traversal, supply chain, credential leakage, and privilege escalation. Assessed from a paranoid posture.
+This category treats the repo like an attack surface: local filesystem inputs, outbound network calls, release supply chain, and any route from untrusted input to a dangerous sink. Good looks like explicit trust boundaries, strong input allowlists, and no easy privilege escalation paths.
 
 ## Methodology
-Mapped every input entry point, external call, and file-system write. Traced data flow from CLI argument to disk. Checked for non-alphanumeric character handling in all inputs.
+Built a threat model around the CLI's three real surfaces: user-supplied skill IDs, local `.skills/` filesystem state, and outbound release publishing. Read `cmd/*.go`, `internal/project/project.go`, `internal/version/version.go`, and `.github/workflows/publish.yml`, and cross-checked for command execution, SSRF, and HTML/JS sinks.
 
 ## Findings
 
 ### Passing checks
-- **No SQL injection surface** — no database used.
-- **No XSS surface** — no HTML output or web server.
-- **No CSRF surface** — no stateful HTTP sessions.
-- **No SSRF surface** — only outbound call is to a hardcoded GitHub API URL (`api.github.com/repos/simonski/skills/releases/latest`). URL is not user-controlled. (internal/version/version.go:14)
-- **No command injection** — `exec.Command` is never called. Grep confirms zero occurrences.
-- **Path traversal prevented** — skill ID is constrained to catalog keys (alphanumeric + hyphens); `filepath.Join` is used throughout; the `.skills/` prefix is always prepended. (internal/project/project.go:22,26)
-- **No credential disclosure** — no secrets written to disk or logs. TAP_TOKEN only appears in the workflow YAML as a secret reference, never echoed.
-- **Embedded FS** — catalog content is compiled into the binary via `//go:embed`; runtime catalog files cannot be tampered with by unprivileged users. (internal/catalog/catalog.go:14)
-- **Minimal privilege** — the binary only writes to `.skills/` within the working directory. No root operations, no system-wide writes.
+- There is no SQL layer, template renderer, or HTTP server, which removes SQLi, XSS, and CSRF from the live threat surface (`main.go:1-7`, `cmd/root.go:16-53`).
+- The outbound release check targets one hard-coded GitHub API URL rather than a user-controlled destination (`internal/version/version.go:13-21`).
+- Catalog content is embedded into the binary at build time, reducing runtime tampering risk (`internal/catalog/catalog.go:16-17`).
+- No command execution path exists in the application code; the CLI performs file and HTTP operations only (`cmd/root.go:16-53`, `internal/version/version.go:19-45`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| Skill ID not validated against allowlist before filesystem write | Medium | cmd/add.go:35, internal/project/project.go:79 | Validate `id` matches `^[a-z0-9][a-z0-9-]*$` before any file operation; `parseSkillArg` currently only checks for empty string |
-| Supply chain: no SLSA provenance or SBOM generated | Medium | .github/workflows/publish.yml | Add `goreleaser` or `cyclonedx-gomod` to generate SBOM; attach to GitHub release |
-| GitHub release API response is not verified (no signature/checksum of tag) | Low | internal/version/version.go:29 | Document this is advisory-only (update check); acceptable for this use case |
-| `make publish` clones tap repo over HTTPS with PAT in URL — PAT visible in process list | Low | Makefile:publish target | Use git credential helper or `GIT_ASKPASS` instead of embedding token in clone URL |
-| No integrity check on installed skill files after `skills add` | Low | cmd/add.go, internal/project/project.go | Consider storing SHA256 in front matter and verifying on `skills ls` |
+|---|---|---|---|
+| The local filesystem trust boundary is broken: `skills rm ..` resolves outside `.skills/` and reaches `os.RemoveAll` | Critical | `cmd/rm.go:25-37`, `internal/project/project.go:95-103` | Treat skill IDs as hostile input and validate before path construction; add regression tests for `.`, `..`, and slash-containing IDs. |
+| Project read paths also rely on unchecked IDs, so hostile input can probe outside the project root | High | `internal/project/project.go:25-28`, `internal/project/project.go:65-78` | Normalize and validate IDs at the package boundary instead of relying on callers. |
+| Release provenance stops at an SBOM; there is no artifact signing or provenance attestation | Medium | `.github/workflows/publish.yml:53-86` | Add signed checksums or provenance attestation for published binaries. |
 
 ## Verdict
-The threat surface is genuinely small. The most meaningful risk is the absence of an ID allowlist before filesystem writes — a carefully crafted skill ID (e.g. containing `../`) could escape the `.skills/` directory. This should be patched. Supply chain hygiene (SBOM, SLSA) is missing but common for projects at this stage.
+The remote attack surface is small, but the local attack surface is more dangerous than the earlier reports suggested. The unchecked path join in project operations is the kind of low-level issue that can turn routine CLI use into destructive behavior.
 
 ## Changes since last assessment
-First assessment.
+- Supply-chain visibility improved via SBOM generation (`.github/workflows/publish.yml:53-56`).
+- The main regression is analytical rather than new code: the old report misclassified path traversal as solved, but the current implementation still permits it (`internal/project/project.go:95-103`).
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Validate skill ID format | Medium | Regex `^[a-z0-9][a-z0-9-]*$` in parseSkillArg and/or project.Install |
-| Generate SBOM on release | Medium | Add cyclonedx-gomod to publish workflow |
-| Sanitise PAT from clone URL | Low | Use GIT_ASKPASS or a netrc credential helper |
+|---|---|---|
+| Local path escape via skill IDs | Critical | Lock the project package behind a strict allowlist and add negative tests. |
+| Missing binary provenance | Medium | Publish signed checksums or provenance alongside release assets. |
+| Release credential exposure risk | Medium | Remove tokenized clone URLs from the publish path. |

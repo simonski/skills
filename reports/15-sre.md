@@ -1,42 +1,38 @@
 # SRE
 
-**Score: 52/100**
+**Score: 58/100** (was 52)
 
 ## What is being assessed
-Observability (metrics, structured logging, tracing), alerting readiness, runbook existence, incident response documentation, backup/restore procedures, capacity planning, SLA/SLO definition, and graceful degradation patterns.
+SRE review checks operational safety for shipping and supporting the tool: release reliability, rollback readiness, graceful degradation, and basic runbook quality. Good looks like reproducible releases, safe failure modes, and a documented recovery path when publish steps go wrong.
 
 ## Methodology
-Searched for Prometheus instrumentation, slog/zerolog usage, distributed tracing, health check endpoints, and operational documentation.
+Reviewed the GitHub Actions workflow, Makefile publish path, release packaging, and operational docs. Focused on failure modes in publish rather than service uptime, since this is a CLI.
 
 ## Findings
 
 ### Passing checks
-- **Graceful degradation on network failure**: `checkForUpdates()` silently ignores errors — users never see a failure if GitHub API is unavailable — cmd/root.go:48
-- **Timeout on external calls**: 5-second timeout on GitHub API — prevents indefinite hangs — internal/version/version.go:18
-- **Release process is automated**: GitHub Actions workflow handles tagging, release creation, and Homebrew tap update — .github/workflows/publish.yml
-- **No stateful service to monitor**: the binary is a local CLI tool — no server processes, no daemons, no databases to observe
-- **Homebrew formula includes test stanza**: `assert_match version.to_s, shell_output("#{bin}/skills version")` — verifies binary executes correctly post-install — packaging/homebrew/skills.rb.template
+- Publish is gated on the test job via `needs: test` (`.github/workflows/publish.yml:30-33`).
+- The workflow avoids recursive publish loops by skipping release commits (`.github/workflows/publish.yml:34-36`).
+- Network update failures degrade gracefully at runtime instead of breaking the command (`cmd/root.go:56-60`).
+- The Homebrew formula has a post-install test (`packaging/homebrew/skills.rb.template:31-33`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| No CHANGELOG.md — incidents and regressions cannot be traced to a specific release | Medium | / | Create CHANGELOG.md per Keep a Changelog format |
-| No rollback procedure documented | Medium | / | Document: to roll back, `brew install simonski/tap/skills@<version>` or download previous GitHub release |
-| CI publish failure leaves partial state (tag pushed but release not created, or release created but tap not updated) | High | .github/workflows/publish.yml | Add atomic rollback: if tap update fails, delete the GitHub release and tag; use job-level `if: failure()` steps |
-| No smoke test after Homebrew tap update (verify formula installs and runs) | Medium | .github/workflows/publish.yml | Add a post-publish verification step: `brew tap simonski/tap && brew install skills && skills version` on macOS runner |
-| No monitoring of GitHub release download counts or install metrics | Low | — | Optional: GitHub Insights provides release download counts natively |
-| Update check cache miss on every invocation adds network dependency to every command | Medium | cmd/root.go | Cache latest-version with 24h TTL in ~/.cache/skills/ to eliminate repeated network calls |
+|---|---|---|---|
+| Publish is not atomic: the workflow creates the GitHub release before the Homebrew tap update finishes | High | `.github/workflows/publish.yml:67-114` | Add rollback/cleanup steps if tap publication fails after tag or release creation. |
+| There is no operational runbook for release rollback or failed publish recovery | Medium | `docs/OPERATIONS.md` (missing) | Add an operations doc covering retry, cleanup, and rollback steps. |
+| The workflow has no post-release smoke test for the published Homebrew formula | Medium | `.github/workflows/publish.yml:88-114` | Install from the tap on a fresh runner after update and run a simple command. |
 
 ## Verdict
-As a local CLI tool, traditional SRE concerns (uptime, latency SLOs, pager alerts) do not apply. The relevant SRE concerns are release reliability and rollback capability. The main gap is that the publish pipeline is not atomic — a failure mid-publish can leave an inconsistent state with a GitHub release but an un-updated Homebrew formula. Adding rollback steps to the workflow is the priority fix.
+Operationally, this repo is fine for a small CLI but still too optimistic about publish success. The release path needs one more pass for rollback and smoke testing before it is truly low-maintenance.
 
 ## Changes since last assessment
-First assessment.
+- SBOM generation improved release hygiene (`.github/workflows/publish.yml:53-56`).
+- The main publish-sequencing risks remain unchanged.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Atomic publish pipeline | High | Add cleanup steps on publish job failure |
-| Document rollback procedure | Medium | Add to README or docs/OPERATIONS.md |
-| Post-publish smoke test | Medium | macOS runner step after tap update |
-| Cache update check | Medium | 24h TTL file in ~/.cache/skills/ |
+|---|---|---|
+| Non-atomic publish | High | Add rollback and cleanup steps around tag/release creation. |
+| Missing operations doc | Medium | Create `docs/OPERATIONS.md` with recovery guidance. |
+| No smoke test | Medium | Verify the brewed binary after tap publication. |

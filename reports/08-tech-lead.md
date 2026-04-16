@@ -1,43 +1,38 @@
 # Tech Lead
 
-**Score: 79/100**
+**Score: 78/100** (was 79)
 
 ## What is being assessed
-File sizes, code duplication, error message consistency, magic numbers, cyclomatic complexity, dead code, naming conventions, interface sizes, helper reuse, and refactoring opportunities.
+This category looks at maintainability from a lead engineer's perspective: duplication, file sizes, refactoring pressure, consistency, and how easy the code is to evolve safely. Good looks like low duplication, obvious invariants, and small testable units.
 
 ## Methodology
-Read all source files. Counted lines per file. Searched for duplicated logic patterns, magic numbers, and inconsistent naming. Assessed function length and complexity.
+Reviewed the largest files, helper reuse, and repeated logic across packages. Cross-checked line counts and command/package organization.
 
 ## Findings
 
 ### Passing checks
-- No file exceeds 308 lines (cmd/init.go) — well within the 700-line limit
-- `buildSkillFile()` is defined once in cmd/add.go:78 and reused by cmd/update.go and cmd/init.go — good helper reuse
-- Error messages are consistently lowercase and wrapped with context (e.g. `"reading skill %s@%s: %w"`)
-- No magic numbers in business logic — `0o644` and `0o755` file permissions are self-documenting constants
-- No dead code identified — all exported functions are used
-- `parseSkillArg` is appropriately extracted for reuse between add/update flows
-- Package `cmd` is flat — no sub-packages needed at this scale
-- `skillStatusStr` helper extracted and reused across `ls` and `init` commands — cmd/init.go:229, cmd/ls.go
+- No Go source file exceeds the 700-line threshold; the largest is `cmd/init.go` at 308 lines.
+- Shared skill-file rendering is centralized in `buildSkillFile` and reused across commands (`cmd/add.go:77-80`, `cmd/update.go:102-105,146-148`, `cmd/init.go:288-290`).
+- Package boundaries are still small and understandable (`main.go:1-7`, `cmd/root.go:42-53`, `docs/ARCHITECTURE.md:23-48`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| Duplicate semver logic: `compareVersions`+`parseVersion` in catalog.go vs `semverGT`+`splitSemver` in version.go | High | internal/catalog/catalog.go:131, internal/version/version.go:62 | Extract `internal/semver` package with a single canonical implementation |
-| `runInit` is 120+ lines of interleaved UI, business logic, and I/O | Medium | cmd/init.go:93 | Extract interactive loop, agent detection, and installation into separate functions |
-| `os.IsNotExist` vs `errors.Is(err, fs.ErrNotExist)` used inconsistently | Low | internal/project/project.go:35, internal/catalog/catalog.go:63 | Standardise on `errors.Is` throughout |
-| `updateConfirm` global var for flag state | Low | cmd/update.go:15 | Use `cmd.Flags().GetBool("yes")` in RunE to avoid global state |
-| `init.go` mixes `skillEntry` struct definition with large interactive function — struct belongs in a types file or catalog package | Low | cmd/init.go:16-22 | Move `skillEntry` to cmd/ls.go or a shared cmd types file |
+|---|---|---|---|
+| Semver logic is duplicated across catalog and version packages | High | `internal/catalog/catalog.go:129-150`, `internal/version/version.go:71-105` | Extract one shared internal package and delete the duplicates. |
+| `runInit` mixes detection, rendering, selection state, stdin parsing, and install/update behavior in one path | Medium | `cmd/init.go:93-212` | Split the wizard into smaller pure helpers plus a thin interactive shell. |
+| Project path invariants are enforced nowhere central, which leaves every caller responsible for safety | Medium | `internal/project/project.go:25-28,81-103` | Make `internal/project` own skill-ID validation instead of trusting its callers. |
+| The `ls` table uses mismatched status column widths between header and rows | Low | `cmd/ls.go:44-45,63` | Normalize the format string once to avoid slow layout drift. |
 
 ## Verdict
-Code quality is good. The codebase is small, well-organised, and free of obvious duplication apart from the semver logic. The main refactoring opportunity is extracting a shared semver package and splitting `runInit` into smaller functions. Neither is urgent but both would improve testability and maintainability.
+The codebase is still compact and easy to reason about, but a few seams are starting to show. The main maintainability win would be centralizing invariants and removing duplicated version logic before more commands accrete around them.
 
 ## Changes since last assessment
-First assessment.
+- File count and feature count grew, but overall file size discipline remains good.
+- The major lead-level concerns are still duplication and safety invariants, not broad architectural sprawl.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Deduplicate semver logic | High | Create internal/semver package |
-| Split runInit | Medium | Extract sub-functions for agent detection, selection loop, apply step |
-| Standardise error sentinel check | Low | Use errors.Is(err, fs.ErrNotExist) everywhere |
+|---|---|---|
+| Duplicated semver code | High | Create one semver helper package and test it thoroughly. |
+| Monolithic init flow | Medium | Extract pure selection and detection helpers from the interactive loop. |
+| Unowned ID invariant | Medium | Move skill-ID validation into the project package. |

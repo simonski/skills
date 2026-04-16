@@ -1,41 +1,38 @@
 # Architect
 
-**Score: 85/100**
+**Score: 87/100** (was 85)
 
 ## What is being assessed
-Package dependency DAG, circular dependency check, resource bounding, plugin/provider patterns, interface abstraction quality, and overall structural design.
+Architecture review checks package boundaries, dependency direction, responsibilities, and whether the design matches the problem size. Good looks like an acyclic dependency graph, clear ownership, and infrastructure complexity proportional to the product.
 
 ## Methodology
-Mapped import relationships between all packages. Checked for circular dependencies with `go list`. Assessed interface usage and abstraction boundaries.
+Read the entrypoint, root command, internal packages, and architecture docs. Compared the actual package dependency direction to the documented DAG.
 
 ## Findings
 
 ### Passing checks
-- **Clean dependency DAG**: cmd → internal/{catalog,project,version}. Internal packages do not import cmd. No circular dependencies.
-- **Single responsibility**: each internal package has one clear job — catalog (embedded skill data), project (local file I/O), version (GitHub API)
-- **Cobra command pattern**: each command is in its own file (add.go, rm.go, ls.go, etc.) — easy to navigate and extend
-- **embed.FS**: catalog content compiled into binary — eliminates runtime file distribution concerns; immutable at runtime
-- **No global state** beyond cobra flag vars and the embedded FS
-- **Error propagation**: errors bubble up through RunE to cobra, which handles formatting and exit codes
-- **Separation of concerns**: `catalog.Get` returns data; `project.Install` handles I/O; cmd layer orchestrates — clean layering
+- The dependency graph is clean and acyclic: `cmd` depends on `internal/catalog`, `internal/project`, and `internal/version`, while internal packages do not import each other (`docs/ARCHITECTURE.md:40-50`, `cmd/root.go:42-53`).
+- The repo keeps one responsibility per internal package: embedded catalog, local project storage, and release checking (`CLAUDE.md:24-35`, `docs/ARCHITECTURE.md:23-37`).
+- The embedded catalog design is simple and appropriate for a CLI distribution model (`internal/catalog/catalog.go:16-17`, `docs/ARCHITECTURE.md:52-75`).
+- Local project state is scoped to `.skills/` rather than spread across user home directories or global config (`internal/project/project.go:12-28`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| No interfaces defined — catalog and project are consumed as concrete packages | Low | cmd/*.go | For testability, define `CatalogReader` and `ProjectWriter` interfaces so cmd functions can accept fakes in tests |
-| Duplicate semver implementations across two packages breaks single-source principle | Medium | internal/catalog/catalog.go:131, internal/version/version.go:62 | Extract internal/semver |
-| No plugin or extension point for adding external skill catalogs | Low | internal/catalog/catalog.go | Future consideration: accept a flag `--catalog-dir` to overlay local skills over embedded catalog |
-| Version package has an HTTP side effect (`LatestRelease`) baked in — hard to test | Medium | internal/version/version.go:16 | Accept `http.Client` as a parameter or define a `ReleaseChecker` interface |
+|---|---|---|---|
+| The project package exposes path construction and mutation APIs without enforcing the skill-ID invariant | Medium | `internal/project/project.go:25-28,81-103` | Make the storage package the trust boundary and reject invalid IDs internally. |
+| Version retrieval is hard-wired to the live GitHub endpoint | Low | `internal/version/version.go:12-21` | Introduce an injectable client or source abstraction for better testability. |
+| Version comparison logic is duplicated across packages instead of owned by a single domain helper | Low | `internal/catalog/catalog.go:129-150`, `internal/version/version.go:71-105` | Consolidate semver behavior into one internal module. |
 
 ## Verdict
-The architecture is clean and well-layered for a CLI tool of this size. The DAG is acyclic, packages are cohesive, and the cobra command pattern is correctly applied. The main structural improvement is introducing interfaces at the cmd/internal boundary to enable unit testing without filesystem or network I/O.
+The architecture is a good fit for the size of the tool: small, acyclic, and easy to trace. The main structural gap is that some safety invariants live in callers instead of the storage boundary that should own them.
 
 ## Changes since last assessment
-First assessment.
+- Supporting docs now match the package layout much better (`docs/ARCHITECTURE.md:1-100`).
+- No architectural bloat was introduced; growth stayed within the same simple command/internal model.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Add CatalogReader / ProjectWriter interfaces | Low | Enables cmd tests without real filesystem |
-| Extract internal/semver | Medium | Deduplicates logic, adds single test location |
-| Inject HTTP client in version package | Medium | Enables testing without live network |
+|---|---|---|
+| Project package trusts callers too much | Medium | Validate skill IDs inside `internal/project`. |
+| Live-bound version source | Low | Allow tests to stub or replace the release source. |
+| Duplicated version rules | Low | Centralize semver behavior. |

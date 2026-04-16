@@ -1,46 +1,39 @@
 # UX Review
 
-**Score: N/A (CLI)**
+**Score: 74/100** (was N/A)
 
 ## What is being assessed
-For a CLI tool: output consistency, colour usage, error display, help text quality, command discoverability, progressive disclosure, and keyboard/terminal ergonomics.
+UX for a CLI means readable output, safe defaults, discoverable workflows, and accessibility-friendly behavior in terminal environments. Good looks like consistent status signals, accurate help, and command flows that avoid accidental destructive actions.
 
 ## Methodology
-Read all cmd/*.go files. Assessed help text, colour usage, error message patterns, output formatting, and command naming conventions.
+Reviewed command help text, table output, status coloring, and interactive flows in `ls`, `search`, `update`, `init`, and `rm`. Compared command output patterns for consistency.
 
 ## Findings
 
 ### Passing checks
-- **Consistent colour scheme**: green = success, yellow = warning/up-to-date, red = not installed, cyan = available update — cmd/ls.go, cmd/init.go, cmd/update.go
-- **All commands have Long help text** with examples — cobra Long field populated in all command files
-- **`skills ls` output is tabular** with aligned columns — cmd/ls.go
-- **`skills init` is interactive** with a clear selection loop and explicit instructions — cmd/init.go
-- **Dry-run pattern in `skills update`** — prevents accidental changes; shows what would happen first — cmd/update.go
-- **Version check notice** appears on stderr (via `fmt.Fprintf(os.Stderr, ...)`) — does not pollute stdout pipeline — cmd/root.go:60
-- **`skills get <id>`** pipes cleanly to other tools (no colour, just raw content) — cmd/get.go
-- **Error messages are quoted**: `skill "go" is not installed` — consistent use of %q format
+- `ls` uses clear status labels and color distinctions for installed, update-available, and missing skills (`cmd/ls.go:17-23,40-63`).
+- `update` defaults to dry-run mode, which is a strong UX choice for bulk changes (`cmd/update.go:16-33,95-97`).
+- `init` provides an interactive selection loop with explicit affordances for all/none/install/quit (`cmd/init.go:163-210`).
+- `version` prints update guidance without polluting command stdout for non-version commands (`cmd/root.go:62-66`, `cmd/version.go:21-39`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| `skills update` and `skills init` missing from README usage table | Medium | README.md | Add both commands to the documented usage section |
-| `skills search` output has no INSTALLED column — inconsistent with `skills ls` | Low | cmd/search.go | Add installed status indicator to search output |
-| `skills rm` has no `--yes` confirmation flag — unlike `skills update` which requires `-y` | Low | cmd/rm.go | Add `-y` flag for consistency, or add an interactive "are you sure?" prompt |
-| `skills ls` column widths are hardcoded with `%-20s` — long skill IDs or descriptions may misalign | Low | cmd/ls.go:44 | Calculate column widths dynamically from data |
-| `skills init` prints `[1]`, `[2]` indices but entering `0` gives an unhelpful "Unknown input" message | Low | cmd/init.go:174 | Specifically handle `0` and out-of-range inputs with a clearer message |
-| No `--no-color` flag or `NO_COLOR` env var support | Low | cmd/root.go | Check `os.Getenv("NO_COLOR")` or add `--no-color` flag; pass to fatih/color's `NoColor` var |
-| Version update notice is on stderr — correct — but mixed with command output in some terminals | Low | cmd/root.go | Acceptable; no change needed |
+|---|---|---|---|
+| The CLI emits colors unconditionally and does not respect `NO_COLOR` or a `--no-color` option | Medium | `cmd/ls.go:21-23,40-42`, `cmd/update.go:61-63,129-131`, `cmd/init.go:99-102,230-248` | Add color suppression support for accessibility and scripting environments. |
+| `search` lacks the install-state context that `ls` already provides | Low | `cmd/search.go:49-53`, `cmd/ls.go:44-63` | Add an installed/status indicator to search results. |
+| `rm` has no confirmation step despite being destructive | Low | `cmd/rm.go:13-37` | Add `--yes` or an interactive confirmation mode. |
+| `ls` uses mismatched format widths between header and row rendering | Low | `cmd/ls.go:44-45,63` | Reuse one format string for the table to keep alignment stable. |
 
 ## Verdict
-CLI UX is polished and consistent. Colour usage is purposeful, help text is complete, and the dry-run pattern in `update` is excellent. Minor gaps: `search` lacks install status, `rm` lacks a safety confirmation, and `NO_COLOR` is not respected. None are blockers.
+The CLI is already usable and fairly consistent, especially around `ls`, `update`, and `init`. The biggest UX gaps are accessibility and deletion safety, not fundamental workflow design.
 
 ## Changes since last assessment
-First assessment.
+- This category is newly scored instead of being left N/A.
+- No major UX regressions were found, but the repo still lacks color opt-out and safer delete ergonomics.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Respect NO_COLOR env var | Low | Set color.NoColor = true when NO_COLOR is set |
-| Add install status to search output | Low | Reuse skillStatusStr in runSearch |
-| Add -y to rm | Low | Match update command pattern |
-| Dynamic column widths in ls | Low | Pre-scan data to calculate max widths |
+|---|---|---|
+| Missing color opt-out | Medium | Respect `NO_COLOR` and/or add `--no-color`. |
+| Search without status context | Low | Show installed/update state in search output. |
+| Destructive remove flow | Low | Add a confirmation or explicit apply flag. |

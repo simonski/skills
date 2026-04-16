@@ -1,48 +1,40 @@
 # Tech Writer
 
-**Score: 68/100**
+**Score: 80/100** (was 68)
 
 ## What is being assessed
-Documentation inventory, completeness scoring, README quality, inline comment density, stub/draft detection, upgrade and migration guides, and onboarding documentation.
+Documentation quality covers correctness, completeness, discoverability, and whether contributor and operator docs stay aligned with the implementation. Good looks like accurate command docs, current change history, and a clear map for maintainers.
 
 ## Methodology
-Read README.md, CLAUDE.md, AGENTS.md, Makefile help output, all skill CHANGELOG.md and README.md files. Checked for docs/ directory, ONBOARDING.md, CONTRIBUTING.md, CHANGELOG.md at project root, and SBOM.md.
+Read `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `CLAUDE.md`, `docs/ARCHITECTURE.md`, and `docs/SECRETS.md`, then compared them to the current code paths in `cmd/` and `internal/project/`.
 
 ## Findings
 
 ### Passing checks
-- README.md covers installation, all 8 commands with examples, catalog table, and build instructions — README.md
-- Makefile has a `help` target with clear descriptions of all targets — Makefile:help
-- Each catalog skill has a README.md and CHANGELOG.md — internal/catalog/skills/*/README.md, CHANGELOG.md
-- CLAUDE.md provides agent-specific instructions including build/test commands and coding conventions — CLAUDE.md
-- AGENTS.md documents the ticket workflow for agents — AGENTS.md
-- Exported Go functions all have doc comments — internal/catalog/catalog.go, internal/project/project.go
-- `skills --help` and per-command `--help` flags provide inline CLI documentation via cobra Long descriptions
+- The README documents installation, command discovery, and build/test usage (`README.md:8-38,108-130`).
+- `CONTRIBUTING.md` now covers branching, commit style, PR expectations, and how to add a catalog skill (`CONTRIBUTING.md:16-84`).
+- `docs/ARCHITECTURE.md` explains package structure and the internal DAG (`docs/ARCHITECTURE.md:1-99`).
+- `docs/SECRETS.md` documents the tap publishing token and how to configure it (`docs/SECRETS.md:7-28`).
+- `CHANGELOG.md` exists and uses a recognizable Keep a Changelog structure (`CHANGELOG.md:1-43`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| No CHANGELOG.md at project root | Medium | / | Create CHANGELOG.md tracking version-by-version changes; use Keep a Changelog format |
-| No CONTRIBUTING.md | Medium | / | Create CONTRIBUTING.md covering: branching, commit message style (conventional commits?), PR process, how to add a new skill to the catalog |
-| No docs/ directory or architecture documentation | Medium | / | Create docs/ARCHITECTURE.md describing package structure and design decisions |
-| No ONBOARDING.md for new contributors | High | / | Create docs/ONBOARDING.md (see new-starter report for full spec) |
-| No SBOM (Software Bill of Materials) | Low | / | Generate with `cyclonedx-gomod` and attach to releases |
-| Required CI secrets not documented | Medium | / | Add docs/SECRETS.md or a README section listing TAP_TOKEN and its required scope |
-| `skills init` interactive wizard not documented in README | Low | README.md | Add `skills init` to the usage table in README.md |
-| `skills update` command not in README | Medium | README.md | Add `skills update` to the usage section and catalog table |
+|---|---|---|---|
+| README still says `add` and `rm` operate on `.skills/<id>.md`, but the implementation uses `.skills/<id>/SKILL.md` | High | `README.md:50-61`, `internal/project/project.go:25-28` | Update the README examples and wording to match the real installed layout. |
+| The changelog stops at `0.1.3` even though the current repo version is `0.1.6` | Medium | `CHANGELOG.md:10-26`, `VERSION:1` | Bring the changelog up to the current release line before the next publish. |
+| The catalog table in README lists only 8 skills while the catalog now contains 10 | Low | `README.md:97-106` | Refresh the README catalog table to include the full current catalog. |
+| There is still no single contributor onboarding guide | Low | `docs/ONBOARDING.md` (missing) | Add an onboarding document that links README, CONTRIBUTING, architecture, and release docs together. |
 
 ## Verdict
-The README is solid for end-users but contributor documentation is absent. There is no CHANGELOG, no CONTRIBUTING guide, and no onboarding path for new developers. The most impactful addition would be a CONTRIBUTING.md and a CHANGELOG.md, which together cover the majority of contributor questions.
+Documentation is much stronger than the previous assessment because the repo now has real contributor, architecture, and secrets docs. The remaining work is mostly accuracy: fixing README drift, refreshing the changelog, and adding one dedicated onboarding doc.
 
 ## Changes since last assessment
-First assessment.
+- `CONTRIBUTING.md`, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, and `docs/SECRETS.md` were added.
+- README drift around installed file layout is still unresolved.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Create CHANGELOG.md | Medium | Keep a Changelog format, retroactively add v0.1.0–v0.1.3 |
-| Create CONTRIBUTING.md | Medium | Branch naming, commit style, how to add catalog skills, PR process |
-| Create docs/ARCHITECTURE.md | Medium | Package DAG, design decisions, catalog structure |
-| Create docs/ONBOARDING.md | High | See new-starter report |
-| Add update + init to README | Medium | Update usage table |
-| Document required secrets | Medium | TAP_TOKEN scope and setup |
+|---|---|---|
+| README path drift | High | Align `add`/`rm` docs with `.skills/<id>/SKILL.md`. |
+| Stale changelog | Medium | Update the changelog to cover current releases. |
+| Missing onboarding doc | Low | Add `docs/ONBOARDING.md`. |

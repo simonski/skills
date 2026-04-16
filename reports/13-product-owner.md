@@ -1,48 +1,38 @@
 # Product Owner
 
-**Score: 74/100**
+**Score: 78/100** (was 74)
 
 ## What is being assessed
-Feature completeness versus stated goals, user journey quality, error UX, missing user-facing features, and accessibility basics for a CLI tool.
+Product-owner review checks whether the implemented command set matches the repo's stated goals and whether important user journeys are complete and understandable. Good looks like discoverable workflows, accurate docs, and low-friction paths for common tasks.
 
 ## Methodology
-Read README.md to identify stated goals and listed features. Exercised all command help text. Assessed error messages from source. Evaluated user journey for install, add, update, remove, and search.
+Compared the stated product in `README.md` with the command implementations in `cmd/`. Focused on the main user journeys: list, search, add, update, inspect, initialize, and remove.
 
 ## Findings
 
 ### Passing checks
-- Core user journey (install → `skills ls` → `skills add go` → `skills update`) is complete and coherent
-- `skills ls` colour-codes status (green/yellow/red) — clear visual affordance — cmd/ls.go
-- `skills add go@1.0.0` version-pinning is supported — cmd/add.go
-- `skills search <term>` searches ID, description, and content — cmd/search.go
-- `skills get <id>` prints full skill content to stdout for piping — cmd/get.go
-- `skills versions <id>` lists available versions — cmd/versions.go
-- `skills init` wizard auto-detects installed agents and pre-selects appropriate skills — cmd/init.go
-- `skills update` dry-run-by-default pattern prevents accidental mass updates — cmd/update.go
-- Version update notice on every command — users always know if they are outdated
-- Clear error messages: `"skill %q is not installed"`, `"skill %q not found in catalog"` — cmd/rm.go, cmd/add.go
+- The README and root command expose a coherent command set for listing, adding, removing, searching, updating, initializing, and inspecting skills (`README.md:24-37`, `cmd/root.go:42-53`).
+- Version pinning is supported for `add` (`cmd/add.go:16-29,84-96`).
+- `update` is dry-run by default, which is a good safety choice for bulk changes (`cmd/update.go:16-33,95-97,140-143`).
+- `init` can detect agent-related files and guide setup interactively (`cmd/init.go:18-68,109-191`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| `skills update` and `skills init` not documented in README usage table | Medium | README.md | Add both commands to the usage section |
-| `skills ls` shows catalog skills but not locally installed skills that are NOT in the catalog | Low | cmd/ls.go | Consider a `skills ls --installed` flag to show only what is actually installed |
-| No `skills info <id>` command to show description + all versions without piping through `skills get` | Low | — | Add `skills info <id>` as a user-friendly alternative to `skills get` |
-| No confirmation prompt for destructive operations (`skills rm`) | Low | cmd/rm.go | Add a `--yes`/`-y` flag to rm (matching update) or a confirmation prompt |
-| `skills search` output does not show installation status | Low | cmd/search.go | Add an INSTALLED column to search output, consistent with `ls` |
-| Error message when skill not in catalog says "not found in catalog" — no suggestion to run `skills ls` | Low | internal/catalog/catalog.go:50 | Append: "Run 'skills ls' to see available skills." |
-| No `skills rm --all` to uninstall everything | Low | — | Nice-to-have for project cleanup |
+|---|---|---|---|
+| The README's installed-file path is wrong, which makes a core user journey inaccurate | Medium | `README.md:50-61`, `internal/project/project.go:25-28` | Update product docs so users know exactly what lands in their project. |
+| `search` does not show whether a matching skill is already installed, unlike `ls` | Low | `cmd/search.go:49-53`, `cmd/ls.go:44-63` | Add an install-status column or marker to search results. |
+| `rm` performs destructive deletion with no dry-run or confirmation path | Low | `cmd/rm.go:13-37` | Add `--yes` or a confirmation prompt consistent with `update`. |
 
 ## Verdict
-The product is feature-complete for its stated goals. The user journey from discovery to installation is smooth. Main gaps are documentation of newer commands (update, init) and small UX polish items like showing install status in search results and adding a suggestion on catalog-not-found errors.
+The product scope is solid and the command set fits the stated goal of managing embedded skills in a project. The remaining gaps are mostly around user trust and clarity rather than missing features.
 
 ## Changes since last assessment
-First assessment.
+- `update`, `init`, `get`, and `versions` are now fully documented in the README (`README.md:24-37`).
+- Product docs still lag the implementation on the actual installed file layout.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Document update + init in README | Medium | Update usage table and add examples |
-| Show install status in search output | Low | Add INSTALLED column to runSearch |
-| Add -y flag to rm | Low | Consistent with update command |
-| Helpful error suggestions | Low | Append "Run skills ls" hint on not-found errors |
+|---|---|---|
+| Incorrect install-path docs | Medium | Fix README path examples and descriptions. |
+| Search lacks status context | Low | Show whether a search hit is installed or updatable. |
+| Remove flow is too sharp-edged | Low | Add a confirmation or explicit apply flag. |

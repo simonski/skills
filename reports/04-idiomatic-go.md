@@ -1,49 +1,39 @@
 # Idiomatic Go
 
-**Score: 81/100**
+**Score: 82/100** (was 81)
 
 ## What is being assessed
-Error handling patterns, context propagation, concurrency safety, package organisation, interface design, naming conventions, build tooling (Makefile, CI), linting configuration, and test patterns — assessed against effective Go and community standards.
+Idiomatic Go covers package structure, error handling, naming, test style, and whether the code follows common Go conventions without unnecessary abstraction. Good looks like small focused packages, wrapped errors, predictable exported APIs, and simple control flow.
 
 ## Methodology
-Read all .go files in cmd/ and internal/. Checked error wrapping, use of context, goroutine usage, package naming, interface definitions, variable naming, Makefile targets, and CI workflow.
+Read all Go packages under `cmd/` and `internal/`, with extra attention to error wrapping, reusable helpers, flag handling, and duplicated logic. Cross-checked the build workflow through `Makefile` and `.github/workflows/publish.yml`.
 
 ## Findings
 
 ### Passing checks
-- All errors are wrapped with `%w` and include call-site context (e.g. `fmt.Errorf("reading skill %s@%s: %w", ...)`) — internal/catalog/catalog.go:62
-- `errors.Is(err, fs.ErrNotExist)` used correctly for file-not-found checks — internal/catalog/catalog.go:63
-- Package names are lowercase single words: `catalog`, `project`, `version`, `cmd` — correct
-- `cobra.Command.RunE` used throughout (returns errors rather than calling os.Exit directly) — all cmd/*.go
-- `os.IsNotExist(err)` used in project package alongside the newer `errors.Is` — minor inconsistency but not wrong
-- Exported functions all have doc comments starting with the function name — internal/catalog/catalog.go, internal/project/project.go
-- No use of `panic` anywhere in application code
-- `t.TempDir()` used in all project tests — correct cleanup pattern — internal/project/project_test.go
-- `embed.FS` used correctly with `//go:embed` directive — internal/catalog/catalog.go:14
-- `bufio.Scanner` used for line-by-line parsing rather than `strings.Split` — internal/catalog/catalog.go:158
+- Command handlers consistently use `RunE`, which keeps error handling explicit and exit behavior centralized (`cmd/add.go:15-34`, `cmd/root.go:35-39`).
+- Errors are wrapped with context in the internal packages (`internal/catalog/catalog.go:61-70`, `internal/project/project.go:37-38,71-72,84-89`, `internal/version/version.go:21-23,28-35,41-42`).
+- Exported types and functions have doc comments in the internal packages (`internal/catalog/catalog.go:19-27,45-58,81-109,153-154`, `internal/project/project.go:14-30,64-81,94-106`).
+- Tests use `t.TempDir()` rather than shared directories (`cmd/update_test.go:20-27`, `internal/project/project_test.go:11-17`).
 
 ### Issues found
 | Finding | Severity | Location | Recommendation |
-|---------|----------|----------|----------------|
-| Global mutable `updateConfirm bool` var used for flag state | Low | cmd/update.go:15 | Acceptable cobra pattern but note it is not safe for parallel command execution in tests; use `cmd.Flags().GetBool("yes")` inside RunE instead |
-| `checkForUpdates()` makes a live HTTP call on every command invocation (except `version`) | Medium | cmd/root.go:26-34 | Run in a goroutine with a context so it never blocks the main command path; or cache result in a temp file with a TTL |
-| `os.IsNotExist` mixed with `errors.Is(err, fs.ErrNotExist)` | Low | internal/project/project.go:35 vs internal/catalog/catalog.go:63 | Standardise on `errors.Is(err, fs.ErrNotExist)` throughout |
-| No `.golangci.yml` linting configuration — `make lint` only runs `go vet` + `staticcheck` if installed | Low | Makefile:lint | Add `.golangci.yml` with at minimum `errcheck`, `govet`, `staticcheck`, `gosimple` |
-| CI has no lint step | Medium | .github/workflows/publish.yml | Add `go vet ./...` and `staticcheck ./...` as a step in the test job |
-| `compareVersions` and `parseVersion` in catalog.go duplicate logic from `semverGT`/`splitSemver` in version.go | Medium | internal/catalog/catalog.go:131, internal/version/version.go:62 | Extract a shared `internal/semver` package used by both |
-| `make build` bumps the patch version on every invocation — breaks reproducibility in local dev | Medium | Makefile:build | Separate `make bump` (version increment) from `make build` (compile only); CI should call `make bump && make release` |
+|---|---|---|---|
+| Semver parsing and comparison are duplicated across two packages | Medium | `internal/catalog/catalog.go:129-150`, `internal/version/version.go:71-105` | Extract one shared internal semver helper and test it directly. |
+| The update check runs synchronously in `PersistentPreRun`, which makes command startup depend on network I/O | Medium | `cmd/root.go:25-31`, `internal/version/version.go:19-45` | Run the check asynchronously or cache it so command execution stays fast and predictable. |
+| `updateConfirm` is mutable package-level state rather than command-local flag state | Low | `cmd/update.go:14-48` | Read the flag value from the Cobra command instead of storing it globally. |
+| The codebase mixes `os.IsNotExist` with `errors.Is(err, fs.ErrNotExist)` | Low | `internal/project/project.go:34,48,68,97`, `internal/catalog/catalog.go:62,86` | Standardize on `errors.Is` for consistency. |
 
 ## Verdict
-The code is clean, well-structured, and follows Go idioms closely. The main actionable issues are: the duplicate semver logic between two packages, the blocking HTTP update check on the critical path, and the absence of a lint step in CI. None are severe, and the overall code quality is high for a project of this size.
+The code is still clean and recognizably Go-like: small packages, direct data flow, and good error context. The biggest idiomatic issue is duplicated semver logic, not a broad style problem.
 
 ## Changes since last assessment
-First assessment.
+- No major code-shape change in the Go packages.
+- The repo improved around CI and docs rather than core Go structure.
 
 ## Remaining recommendations
 | Finding | Severity | Recommendation |
-|---------|----------|----------------|
-| Async update check | Medium | Wrap checkForUpdates in a goroutine; print result at end of command |
-| Deduplicate semver logic | Medium | Create internal/semver package |
-| Separate version bump from build | Medium | Add `make bump` target; make `make build` idempotent |
-| Add .golangci.yml | Low | Configure errcheck, govet, staticcheck, gosimple |
-| Add lint step to CI | Medium | go vet + staticcheck in test job |
+|---|---|---|
+| Duplicated semver helpers | Medium | Consolidate version parsing/comparison into one package. |
+| Blocking update check | Medium | Remove network I/O from the hot startup path. |
+| Global flag state | Low | Resolve Cobra flags inside the command handler. |
